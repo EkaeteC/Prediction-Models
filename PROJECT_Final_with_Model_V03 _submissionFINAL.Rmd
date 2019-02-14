@@ -1,0 +1,343 @@
+---
+title: 'CKME 136 X10-DATA ANALYTICS: CAPSTONE PROJECT'
+author: "Ekaete Czub"
+date: February 10, 2019
+output:
+  word_document: default
+  html_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+## knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Installation of relevant packages.
+
+```{r}
+#install.packages("ISwR")
+#install.packages("caret")
+#install.packages("MASS")
+#install.packages("lubridate")
+#install.packages("stringr")
+#install.packages("corrplot")
+#install.packages("ggcorrplot")
+#install.packages("Metrics")
+library(ISwR)
+library(caret)
+library(MASS)
+library(lubridate)
+library(stringr)
+library(corrplot)   #### <---------------  Added for correlation plot
+library(ggcorrplot) #### <---------------  Added for correlation plot
+library(Metrics)
+```
+
+## Read "Avocado.csv file" from folder or website:
+
+```{r}
+Avocado <- read.csv(file.choose(), header = T, sep = ",", stringsAsFactors = F, na.strings = c(NA,"","?"))
+avobk <- Avocado
+```
+
+## Cleaning data:correcting column names
+```{r}
+#names(Avocado)  
+#names(Avocado)[1]<- "No"
+names(Avocado)[names(Avocado) =="X"]<- "No"
+names(Avocado)[names(Avocado) =="X4046"]<-"PLU4046"
+names(Avocado)[names(Avocado) =="X4225"]<-"PLU4225"
+names(Avocado)[names(Avocado) =="X4770"]<-"PLU4770"
+#head(Avocado)
+str(Avocado)
+any(is.na(Avocado))
+```
+
+#column: "No"  - Categorical column  <--- This column will be removed .....
+```{r}
+## Removing column 1(No)
+Avocado<- Avocado[, -1] 
+str(Avocado)
+```
+
+# column:Date - Categorical column
+```{r}
+### names(Avocado)[2]
+names(Avocado)[1]  ### <----- Date becomes the first column because the first column is removed..
+### Converting the date column from character to date
+Avo_Date <- Avocado$Date
+Avo_Date <- as.Date(Avo_Date, format= "%Y-%m-%d")
+Avocado$Date <- Avo_Date
+Avocado$Month <- month(Avocado$Date)
+Avocado$Month <- as.factor(Avocado$Month)
+Avocado$Day   <- day(Avocado$Date)
+Avocado$Day   <- as.factor(Avocado$Day)
+Avocado$year  <- as.factor(Avocado$year)
+##Avocado$Week  <- as.factor(week(Avocado$Date))
+Avocado <- Avocado[-1]
+```
+
+## column: AveragePrice - Numeric column
+```{r}
+names(Avocado)[1]
+Avo_AvgPrice <- Avocado$AveragePrice
+summary(Avo_AvgPrice)
+hist(Avo_AvgPrice, breaks = 20, main="Histogram: Avocado Price distribution")###  ----> This goes to the INITIAL analysis <---
+boxplot(Avo_AvgPrice, main = "Boxplot of Avocado Average Price with outliers", ylab="count",horizontal = F, outcol = "red", col="red")  ###  ----> This goes to the INITIAL analysis <---
+pout <- boxplot.stats(Avo_AvgPrice)$out
+while (length(pout)>0) {
+  outrecs <- which(Avo_AvgPrice %in% pout)
+  Avo_AvgPrice[outrecs] <- NA
+  Avo_AvgPrice[is.na(Avo_AvgPrice)] <- median(Avo_AvgPrice, na.rm = T)
+  pout <- boxplot.stats(Avo_AvgPrice)$out
+}
+Avocado$AveragePrice<-Avo_AvgPrice
+hist(Avocado$AveragePrice, main= "Histogram: Avocado Average Price distribution",col = "red") ###  ----> This goes to the FINAL analysis <---
+boxplot(Avocado$AveragePrice, main ="Boxplot of Avocado Average Price", ylab="count",xlab="Average Price", col="red") ### ----> This goes to the FINAL analysis <---
+summary(Avo_AvgPrice)
+```
+
+# column: Total.Volume - Numeric column  
+```{r}
+names(Avocado)[2]
+Avo_Total.Vol <- Avocado$Total.Volume
+summary(Avo_Total.Vol) 
+hist(Avo_Total.Vol, main= "Histogram: Total Volume distribution of Avocado", cex.main=1, ylab = "number of Avocado sold",cex.lab=1)###  ----> This goes to the INITIAL analysis <---
+boxplot(Avo_Total.Vol, main = "Boxplot of Total Volume of Avocado with outliers", cex.main=1, ylab = "count",cex.axis=1, xlab="Total Volume", cex.lab=1, horizontal = F, outcol = "orange", col= "orange") ###  ----> This goes to the INITIAL analysis <---
+poutTV<-boxplot.stats(Avo_Total.Vol)$out
+while (length(poutTV)>0) {
+  outrecsTV <- which(Avo_Total.Vol %in% poutTV)
+  Avo_Total.Vol[outrecsTV] <- NA
+  Avo_Total.Vol[is.na(Avo_Total.Vol)] <- median(Avo_Total.Vol, na.rm = T)
+  poutTV <- boxplot.stats(Avo_Total.Vol)$out
+}
+Avocado$Total.Volume <- Avo_Total.Vol
+hist(Avocado$Total.Volume, main= "Histogram: Total Volume distribution of Avocado",cex.main=1,ylab= "number of Avocado sold",cex.axis=1, col= "orange") ### ----> This goes to the FINAL analysis <---
+boxplot(Avocado$Total.Volume, main = "Boxplot of Total Volume of Avocado", cex.main=1, ylab="count",cex.axis=1, xlab = "Total Volume",cex.lab=1, col="orange") ### ----> This goes to the FINAL analysis <---
+summary(Avo_Total.Vol)
+```
+
+# column: PLU4046- numeric column 
+```{r}
+names(Avocado)[3]
+Avo_PLU4046 <- Avocado$PLU4046
+summary(Avo_PLU4046) 
+hist(Avo_PLU4046, main = "Histogram of Avocado Product Look code(PLU) 4046", cex.main=1, ylab = "Number of Avocado with PLU4046 sold", cex.axis=1)###  ----> This goes to the INITIAL analysis <---
+boxplot(Avo_PLU4046, main = "Boxplot of Avocado PLU4046 with outliers", cex.main=1,  ylab="count", cex.axis=1,xlab= "Avocado PLU4046", cex.lab=1,horizontal = F, outcol="yellow", col="yellow")###  ----> This goes to the INITIAL analysis <---
+poutC1<-boxplot.stats(Avo_PLU4046)$out
+while (length(poutC1)>0) {
+  outrecsC1 <- which(Avo_PLU4046 %in% poutC1)
+  Avo_PLU4046[outrecsC1] <- NA
+  Avo_PLU4046[is.na(Avo_PLU4046)] <- median(Avo_PLU4046, na.rm = T)
+  poutC1 <- boxplot.stats(Avo_PLU4046)$out
+}
+Avocado$PLU4046<-Avo_PLU4046
+hist(Avocado$PLU4046,main= "Histogram of Avocado PLU4046", cex.main=1,ylab= "number of Avocado with PLU4046 sold",cex.axis=1, col="yellow")### ----> This goes to the FINAL analysis <---
+boxplot(Avocado$PLU4046, main="Boxplot of Avocado PLU4046", cex.main=1,ylab="count",cex.axis=1, xlab="Avocado PLU4046", cex.lab=1,col = "yellow")### ----> This goes to the FINAL analysis <---
+summary(Avo_PLU4046)
+```
+
+# column: PLU4225 - numeric column
+```{r}
+names(Avocado)[4]
+Avo_PLU4225 <- Avocado$PLU4225
+summary(Avo_PLU4225) 
+hist(Avo_PLU4225, main="Distribution of Avocado PLU4225", ylab="number of Avocado with PLU4225 sold")###  ----> This goes to the INITIAL analysis <---
+boxplot(Avo_PLU4225, main = "Boxplot of Avocado PLU4225 with outliers",ylab="count", xlab= "Avocado PLU4225", horizontal = F, outcol="pink", col="pink")###  ----> This goes to the INITIAL analysis <---
+poutC2<-boxplot.stats(Avo_PLU4225)$out
+while (length(poutC2)>0) {
+  outrecsC2 <- which(Avo_PLU4225 %in% poutC2)
+  Avo_PLU4225[outrecsC2] <- NA
+  Avo_PLU4225[is.na(Avo_PLU4225)] <- median(Avo_PLU4225, na.rm = T)
+  poutC2 <- boxplot.stats(Avo_PLU4225)$out
+}
+Avocado$PLU4225<-Avo_PLU4225
+hist(Avocado$PLU4225, main="Distribution of Avocado PLU4225", ylab= "number of Avocado with PLU4225 sold",col="pink")### ----> This goes to the FINAL analysis <---
+boxplot(Avocado$PLU4225, main="Boxplot of Avocado PLU4225", ylab="count", xlab= "Avocado PLU4225", col="pink")### ----> This goes to the FINAL analysis <---
+summary(Avo_PLU4225)
+```
+
+# column: PLU4770 - numeric column
+```{r}
+names(Avocado)[5]
+Avo_PLU4770 <- Avocado$PLU4770
+summary(Avo_PLU4770) 
+hist(Avo_PLU4770, main="Distribution of Avocado PLU4770", ylab="number of Avocado with PLU4770 sold")###  ----> This goes to the INITIAL analysis <---
+boxplot(Avo_PLU4770, main = "Boxplot of Avocado PLU4770 with outliers", xlab= "Avocado PLU4770", horizontal = F, outcol="green", col="green")###  ----> This goes to the INITIAL analysis <---
+poutC3<-boxplot.stats(Avo_PLU4770)$out
+while (length(poutC3)>0) {
+  outrecsC3 <- which(Avo_PLU4770 %in% poutC3)
+  Avo_PLU4770[outrecsC3] <- NA
+  Avo_PLU4770[is.na(Avo_PLU4770)] <- median(Avo_PLU4770, na.rm = T)
+  poutC3 <- boxplot.stats(Avo_PLU4770)$out
+}
+Avocado$PLU4770<-Avo_PLU4770
+hist(Avocado$PLU4770, main="Distribution of Avocado PLU4770", ylab="number if Avocado with PLU4770 sold",col="green")### ----> This goes to the FINAL analysis <---
+boxplot(Avocado$PLU4770, main = "Boxplot of Avocado PLU 4770", ylab="count",xlab="Avocado PLU4770", col="green")### ----> This goes to the FINAL analysis <---
+summary(Avo_PLU4770)
+```
+
+# column: Total.Bags- numeric column
+```{r}
+names(Avocado)[6]
+Avo_Total.Bags <- Avocado$Total.Bags
+summary(Avo_Total.Bags) 
+hist(Avo_Total.Bags, main="Histogram of Total Bags of Avocado", ylab="number of Total Bags of Avocado")###  ----> This goes to the INITIAL analysis <---
+boxplot(Avo_Total.Bags, main = "Boxplot of Total Bags of Avocado with outliers", ylab="count", xlab="Total Bags", horizontal = F, outcol = "purple", col="purple")###  ----> This goes to the INITIAL analysis <---
+poutTB<-boxplot.stats(Avo_Total.Bags)$out
+while (length(poutTB)>0) {
+  outrecsTB <- which(Avo_Total.Bags %in% poutTB)
+  Avo_Total.Bags[outrecsTB] <- NA
+  Avo_Total.Bags[is.na(Avo_Total.Bags)] <- median(Avo_Total.Bags, na.rm = T)
+  poutTB <- boxplot.stats(Avo_Total.Bags)$out
+}
+Avocado$Total.Bags<-Avo_Total.Bags
+hist(Avocado$Total.Bags, main="Histogram of Total Bags of Avocado", ylab="number of Total Bags of Avocado",col = "purple")### ----> This goes to the FINAL analysis <---
+boxplot(Avocado$Total.Bags, main="Boxplot of Total Bags of Avocado", ylab="count", xlab="Total Bags", col="purple")### ----> This goes to the FINAL analysis <---
+summary(Avo_Total.Bags)
+```
+
+# column: Small.Bags- numeric column
+```{r}
+
+names(Avocado)[7]
+Avo_Small.Bags <- Avocado$Small.Bags
+summary(Avo_Small.Bags) 
+hist(Avo_Small.Bags, main="Histogram of Small Bags of Avocado", ylab="number of Small Bags of Avocado")###  ----> This goes to the INITIAL analysis <---
+boxplot(Avo_Small.Bags, main = "Boxplot of Small Bags of Avocado with outliers",ylab="count", xlab="Small Bags", horizontal = F, outcol = "brown", col="brown")###  ----> This goes to the INITIAL analysis <---
+poutSB<-boxplot.stats(Avo_Small.Bags)$out
+while (length(poutSB)>0) {
+  outrecsSB <- which(Avo_Small.Bags %in% poutSB)
+  Avo_Small.Bags[outrecsSB] <- NA
+  Avo_Small.Bags[is.na(Avo_Small.Bags)] <- median(Avo_Small.Bags, na.rm = T)
+  poutSB <- boxplot.stats(Avo_Small.Bags)$out
+}
+Avocado$Small.Bags<-Avo_Small.Bags
+hist(Avocado$Small.Bags, main="Histogram of Small Bags of Avocado" , ylab="number of Small Bags of Avocado", col="brown")### ----> This goes to the FINAL analysis <---
+boxplot(Avocado$Small.Bags, main="Boxplot of Small Bags of Avocado", ylab="count", xlab="Small Bags", col="brown")### ----> This goes to the FINAL analysis <---
+summary(Avo_Small.Bags)
+```
+
+# column: Large.Bags - numeric column
+```{r}
+names(Avocado)[8]
+Avo_Large.Bags <- Avocado$Large.Bags
+summary(Avo_Large.Bags) 
+hist(Avo_Large.Bags, main="Histogram of Large Bags of Avocado", ylab="number of Large Bags of Avocado")###  ----> This goes to the INITIAL analysis <---
+boxplot(Avo_Large.Bags, main = "Boxplot of Large Bags of Avocado with outliers", ylab="count", xlab="Large Bags",horizontal = F, outcol = "gold", col="gold")###  ----> This goes to the INITIAL analysis <---
+poutLB<-boxplot.stats(Avo_Large.Bags)$out
+while (length(poutLB)>0) {
+  outrecsLB <- which(Avo_Large.Bags %in% poutLB)
+  Avo_Large.Bags[outrecsLB] <- NA
+  Avo_Large.Bags[is.na(Avo_Large.Bags)] <- median(Avo_Large.Bags, na.rm = T)
+  poutLB <- boxplot.stats(Avo_Large.Bags)$out
+}
+Avocado$Large.Bags<-Avo_Large.Bags
+hist(Avocado$Large.Bags, main="Histogram of Large Bags of Avocado", ylab="number of Large Bags of Avocado", col = "gold")### ----> This goes to the FINAL analysis <---
+boxplot(Avocado$Large.Bags, main="Histogram of Large Bags of Avocado", ylab="count", xlab="Large Bags", col="gold")### ----> This goes to the FINAL analysis <---
+summary(Avo_Large.Bags)
+```
+
+# column: XLarge.Bags - numeric column  ---->  THIS COLUMN WILL BE REMOVED <-----
+
+```{r}
+names(Avocado)[9]
+Avo_XLarge.Bags <- Avocado$XLarge.Bags
+summary(Avo_XLarge.Bags) 
+hist(Avo_XLarge.Bags)###  ----> This goes to the INITIAL analysis <---
+boxplot(Avo_XLarge.Bags, main = "Avo_XLarge.Bags with outliers", horizontal = F, outcol = "blue", col="blue")###  ----> This goes to the INITIAL analysis <---
+poutXLB<-boxplot.stats(Avo_XLarge.Bags)$out
+while (length(poutXLB)>0) {
+  outrecsXLB <- which(Avo_XLarge.Bags %in% poutXLB)
+  Avo_XLarge.Bags[outrecsXLB] <- NA
+  Avo_XLarge.Bags[is.na(Avo_XLarge.Bags)] <- median(Avo_XLarge.Bags, na.rm = T)
+  poutXLB <- boxplot.stats(Avo_XLarge.Bags)$out
+}
+Avocado$XLarge.Bags<-Avo_XLarge.Bags
+hist(Avocado$XLarge.Bags)
+boxplot(Avocado$XLarge.Bags, main="Extra Large Bags of Avocado")
+#Removing column 11(XLarge.Bags)
+Avocado$Total.Bags <- Avocado$Small.Bags + Avocado$Large.Bags
+Avocado<- Avocado[, -9]
+## str(Avocado)
+```
+### ---------------------------------------------------------------------------------
+### --->  COLUMN NUMBERS CHANGED AGAIN AFTER REMOVING the column XLarge.Bags <-------
+### ---------------------------------------------------------------------------------
+# column: type - categorical column
+```{r}
+names(Avocado)[9]
+Avo_type <- Avocado$type
+table(Avo_type)
+type<-table(Avo_type)
+barplot(type, main = "Barplot of Avocado Types", col=rainbow(2))
+```
+
+# column: year - categorical column
+```{r}
+# names(Avocado)[10]
+# Avo_year <- Avocado$year
+# Avo_year <- factor(Avo_year)
+#head(Avo_year)
+Years <- table(Avocado$year)
+barplot(Years, main = "Avocado Years Covarage", col=rainbow(4))
+```
+
+# column: region - categorical column
+```{r}
+
+names(Avocado)[11]
+Avo_region<- Avocado$region
+region<-table(Avo_region, useNA = 'ifany')
+region
+
+barplot(region[1:10],  main = "Barplot of Avocado Regions")
+barplot(region[11:20], main = "Barplot of Avocado Regions")
+barplot(region[21:30], main = "Barplot of Avocado Regions")
+barplot(region[31:40], main = "Barplot of Avocado Regions")
+barplot(region[41:50], main = "Barplot of Avocado Regions")
+barplot(region[51:length(region)], main = "Barplot of Avocado Regions")
+```
+
+#correlation between numeric columns
+```{r}
+corr_df<-Avocado[1:8]  
+## plot(d)  <--- Imaage is saved. 
+corr_mtrx <- cor(corr_df)
+corrplot(corr_mtrx)
+ggcorrplot(corr_mtrx)
+ggcorrplot(corr_mtrx, lab = T, hc.order = T, type = 'upper')
+```
+
+#Splitting dataset to 70% training and 30% test sets
+```{r}
+Avocado$type <- as.factor(Avocado$type)
+Avocado$region <- as.factor(Avocado$region)
+Avocado_Train <-sample(nrow(Avocado), floor(nrow(Avocado)*0.7))
+train_data <-Avocado[Avocado_Train,]
+test_data  <-Avocado[-Avocado_Train,]
+# Building the Multiple Linear Regression Model
+set.seed(123)
+Avocado_Model <-lm(AveragePrice~., data=train_data)
+summary(Avocado_Model)
+prediction_prices<-predict(Avocado_Model, interval="prediction", newdata=test_data)
+summary(prediction_prices)
+```
+```{r}
+red_Avocado <- Avocado[,c("AveragePrice","Total.Volume","PLU4046","PLU4225","PLU4770","type")]
+plot(red_Avocado)
+avo_lm_rd <- lm(AveragePrice~Total.Volume+PLU4046+PLU4225+PLU4770+type, data = train_data)
+summary(avo_lm_rd)
+pric_pred_rd <- predict(Avocado_Model, interval="prediction", newdata=test_data)
+summary(avo_lm_rd)
+anova(avo_lm_rd, Avocado_Model)
+```
+
+#Plotting errors on a histogram
+```{r}
+#errors<-prediction_prices[,"fit"]-test_data$AveragePrice
+#errors
+#hist(errors)
+
